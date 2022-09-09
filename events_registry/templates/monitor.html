@@ -1,0 +1,224 @@
+{% extends 'base.html' %}
+{% load seat_extractor %}
+
+{% block page_header %}
+<div class="border-top border-3">
+    <h1 class="display-1">{{event.name}}</h1>
+    <p class="font-size-4 ms-auto">
+        {{event.start_date}} at {{event.start_time}}</p>
+    <p class="font-size-4 mt-2">Attendees: 
+        {{event.count_attenders}}/{{event.get_max_attenders_number}}</p>
+    <p class="font-size-4 mt-2">Checked-in attendees:
+        <span id="arrivals-count">{{event.count_arrivals}}</span>/<span id="attenders-count">{{event.count_attenders}}</span>
+    </p>
+</div>
+{% endblock page_header %}
+
+{% block content %}
+<!-- Messages section -->
+{% if messages %}
+    {% for message in messages %}
+        <div id="messages-box" 
+        class="mt-2 alert alert-{{message.tags}}" role="alert">
+            {{message}}
+        </div>
+    {% endfor %}
+{% else %}
+    <div id="messages-box" class="mt-2 alert alert-danger d-none"
+    role="alert"></div>
+{% endif %}
+<!-- Participats section -->
+<div class="row border-top border-3">
+    <div class="d-flex mt-2 mb-2">
+        <span class="flex-grow-1 font-size-10">Attendees:</span>
+        <div class="p-2">
+            <a onclick="cleanUp()" class="primary-button-small">CleanUp</a>
+        </div>
+        <div class="p-2 btn-group">
+            <button class="primary-button-small dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                Sort by
+            </button>
+            <ul class="dropdown-menu">
+                <li><a class="dropdown-item" 
+                    onclick="sortTable(0)">ID</a></li>
+                <li><a class="dropdown-item" 
+                    onclick="sortTable(1)">First name</a></li>
+                <li><a class="dropdown-item" 
+                    onclick="sortTable(2)">Last name</a></li>
+                <li><a class="dropdown-item" 
+                    onclick="sortTable(3)">Phone number</a></li>
+                <li><a class="dropdown-item" 
+                    onclick="sortTable(4)">Email</a></li>
+            </ul>
+        </div>
+    </div>
+    <div class="table-responsive text-center">
+        <table id="attenders-table" class=" table table-striped table-bordered table-hover">
+            <tr class="text-white">
+                <th scope="col">Member ID</th>
+                <th scope="col">First Name</th>
+                <th scope="col">Last Name</th>
+                <th scope="col">Phone Number</th>
+                <th scope="col">Email</th>
+                <th scope="col">Checked in</th>
+                <th scope="col">Seat nr</th>
+            </tr>
+            {% for participant in event.get_attenders %} 
+            <tr class="text-white">
+                <td>{{participant.id}}</td>
+                <td>{{participant.first_name}}</td>
+                <td>{{participant.last_name}}</td>
+                <td>{{participant.username}}</td>
+                <td>{{participant.email}}</td>
+                {% if participant.id in event.arrivals %}
+                <td>
+                    <input id="checkbox-{{participant.id}}" value="{{participant.id}}" type="checkbox" 
+                    onchange="jsSubmit(this.value)" checked>
+                </td>
+                {% else %}
+                <td>
+                    <input id="checkbox-{{participant.id}}" value="{{participant.id}}" type="checkbox" 
+                    onchange="jsSubmit(this.value)">
+                </td>
+                {% endif %}
+                {% if participant.id|stringformat:"s" in event.seats %}
+                {% with arrival_id=participant.id|stringformat:"s" %}
+                <td id="sn-{{participant.id}}">
+                    {{ arrival_id|get_seat:event.id  }}
+                </td>
+                {% endwith %}
+                {% else %}
+                <td id="sn-{{participant.id}}">
+                </td>
+                {% endif %}
+            </tr>
+        {% empty %}
+        <p class="lead">No attenders were found for this event</p>
+        {% endfor %}
+        </table>
+    </div>
+</div>
+{% endblock content %}
+{% block JavaScript %}
+<script> 
+function sortTable(by) {
+  var table = document.getElementById("attenders-table");
+  var switching = true;
+  /* Make a loop that will continue until
+  no switching has been done: */
+  while (switching) {
+    // Start by saying: no switching is done:
+    switching = false;
+    var rows = table.rows;
+    /* Loop through all table rows (except the
+    first, which contains table headers): */
+    for (var i = 1; i < (rows.length - 1); i++) {
+      // Start by saying there should be no switching:
+      var shouldSwitch = false;
+      /* Get the two elements you want to compare,
+      one from current row and one from the next: */
+      var x = rows[i].getElementsByTagName("TD")[by];
+      var y = rows[i + 1].getElementsByTagName("TD")[by];
+      // Check if the two rows should switch place:
+      if (by == 0){
+      if (parseInt(x.innerHTML) > parseInt(y.innerHTML)) {
+        // If so, mark as a switch and break the loop:
+        shouldSwitch = true;
+        break;
+      }
+    } else {
+        console.log('it is not 0')
+        if (x.innerHTML.toLowerCase() > y.innerHTML.toLowerCase()) {
+        // If so, mark as a switch and break the loop:
+        shouldSwitch = true;
+        break;
+      }
+    }
+    }
+    if (shouldSwitch) {
+      /* If a switch has been marked, make the switch
+      and mark that a switch has been done: */
+      rows[i].parentNode.insertBefore(rows[i + 1], rows[i]);
+      switching = true;
+    }
+  }
+} 
+
+function cleanUp(){
+    // Create a new Ajax object
+    var xhr = new XMLHttpRequest();
+    xhr.onload = function() {
+        var response = JSON.parse(this.responseText)
+        // Request status
+        if (this.readyState === 4 & (this.status >= 200 && this.status < 500)) 
+        {
+            updateCounters(response)
+            updateMessage(response)
+            if (response.status == 'cp-up'){
+            setTimeout(() => { location.reload()}, 2500);   
+        }    
+
+        }
+    }
+    xhr.open('POST',"{% url 'events_registry:clean_up_attenders' event.id %}",true);
+    xhr.setRequestHeader('X-CSRFToken', '{{ csrf_token }}');
+    xhr.send()
+}
+
+// Vanilla JavaScript
+function jsSubmit(arrivalid){
+    var checkbox = document.getElementById("checkbox-"+arrivalid);
+    // Create a new Form object to pass in values
+    var data = new FormData();
+    data.append('arrival_id', arrivalid);
+    // Create a new Ajax object
+    var xhr = new XMLHttpRequest();
+    xhr.onload = function() {
+        var response = JSON.parse(this.responseText)
+
+        // Request status
+        if (this.readyState === 4 & (this.status >= 200 && this.status < 500)) 
+        {
+            updateCounters(response)
+            updateSeatNumber(arrivalid, response)
+            updateMessage(response)
+
+        }
+    }
+    // Check in
+    if (checkbox.checked) {
+        xhr.open('POST',"{% url 'events_registry:check_in' event.id%}",true);
+    // Check out
+    } else {
+        xhr.open('POST',"{% url 'events_registry:check_out' event.id%}",true);
+    }
+    xhr.setRequestHeader('X-CSRFToken', '{{ csrf_token }}');
+    xhr.send(data)
+}
+
+function updateSeatNumber(arrivalid, response) {
+    console.log(response)
+    var seatNumber = document.getElementById('sn-'+arrivalid)
+    seatNumber.innerHTML = response.seat_number
+}
+
+function updateCounters (response) {
+    var attendersCount = document.getElementById('attenders-count');
+    var arrivalsCount = document.getElementById('arrivals-count');
+    attendersCount.innerHTML = response.attenders_count;
+    arrivalsCount.innerHTML = response.arrivals_count;
+}
+
+function updateMessage(response) {
+    var message = document.getElementById("messages-box");
+    // Remove old messages
+    message.innerHTML = ""
+    message.className = "d-none"
+    // If a message was sent from the server
+    if (response.message) {
+    message.className = response.message_class
+    message.innerHTML = response.message
+    }
+}
+</script>
+{% endblock JavaScript %}

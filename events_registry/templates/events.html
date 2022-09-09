@@ -1,0 +1,163 @@
+{% extends 'base.html' %}
+{% block page_header %}
+{% load seat_extractor %}
+
+<div class="d-flex border-bottom border-white pb-1 border-3">
+        <span class="flex-grow-1 mt-2 font-size-17">Events</span>
+    {% if perms.events_registry.add_event %}
+        <span class="mt-4"><a class="primary-button px-3" href="{% url 'events_registry:new_event' %}">New event</a></span>
+    {% endif %}
+</div>
+{% endblock page_header %}
+
+{% block content %}
+<!-- Messages section -->
+{% if messages %}
+    {% for message in messages %}
+    <div id="messages-box" class="mt-2 alert alert-{{message.tags}}" role="alert">
+        {{message}}
+    </div>
+    {% endfor %}
+{% else %}
+<div id="messages-box" class="mt-2 alert alert-danger d-none" role="alert">
+</div>
+{% endif %}
+
+<!-- Events section -->
+{% for event in events %}
+<div class="d-lg-flex justify-content-center border border-3 mb-2 pb-2">
+    <div class="flex-fill ms-1 mt-2">
+        <span class="font-size-13 font-weight-3">{{event.name}}</span>  
+    </div>
+    <div class="flex-fill ms-1 pt-2 mt-2">
+        <p>
+        <span class="font-size-4">{{event.start_date}} |</span>
+        <span class="font-size-8 primary-text-color ms-1">{{event.start_time}}</span>
+    </p>
+    </div>
+    <div class="flex-fill ms-1 pt-2 mt-2">
+        <p class="font-size-6">
+            <span id="{{event.id}}-attenders-count">{{event.count_attenders}}</span><span>/{{event.get_max_attenders_number}}</span> attendees
+        </p>
+    </div>
+    <!-- For managers -->
+    {% if perms.events_registry.add_event %}
+    <div class="d-md-inline-flex justify-content-center ms-1 me-1 mt-3">
+        <span><a class="primary-outline-button" href="{% url 'events_registry:edit_event' event.id %}">Edit</a></span>
+        <span><a class="primary-outline-button" href="{% url 'events_registry:monitor' event.id %}">Monitor</a></span>
+        {% if user.id in event.attenders %}
+            {% if user.id in event.arrivals %}
+            {% with arrival_id=user.id|stringformat:"s" %}
+            <span><a id=u-{{event.id}} class="primary-outline-button disabled" onclick="submit(this.id)">Seat [{{ arrival_id|get_seat:event.id }}]</a></span>
+            {% endwith %}
+            {% else %}
+            <span><a id=u-{{event.id}} class="primary-outline-button" onclick="submit(this.id)">Unregister</a></span>
+            {% endif %}
+        {% else %}
+            {% if event.is_fully_booked %}
+            <span><a id=r-{{event.id}} class="primary-outline-button disabled">FULL</a></span>
+            {% else %}
+            <span><a id=r-{{event.id}} class="primary-outline-button" onclick="submit(this.id)">Register</a></span>
+            {% endif %}
+        {% endif %}
+    </div>
+
+    <!-- For staff members -->
+    {% elif perms.events_registry.change_event %}
+    <div class="d-md-inline-flex justify-content-center ms-1 me-2 mt-3">
+        <span><a class="primary-outline-button" href="{% url 'events_registry:monitor' event.id %}">Monitor</a></span>
+        {% if user.id in event.attenders %}
+            {% if user.id in event.arrivals %}
+            {% with arrival_id=user.id|stringformat:"s" %}
+            <span><a id=u-{{event.id}} class="primary-outline-button disabled" onclick="submit(this.id)">Seat [{{ arrival_id|get_seat:event.id }}]</a></span>
+            {% endwith %}
+            {% else %}
+            <span><a id=u-{{event.id}} class="primary-outline-button" onclick="submit(this.id)">Unregister</a></span>
+            {% endif %}
+        {% else %}
+            {% if event.is_fully_booked %}
+            <span><a id=r-{{event.id}} class="primary-outline-button disabled">FULL</a></span>
+            {% else %}
+            <span><a id=r-{{event.id}} class="primary-outline-button" onclick="submit(this.id)">Register</a></span>
+            {% endif %}
+        {% endif %}
+    </div>
+
+    <!-- For normal users -->
+    {% else %}
+    <div class="d-md-inline-flex justify-content-center ms-1 me-2 mt-3">
+        {% if user.id in event.attenders %}
+            {% if user.id in event.arrivals %}
+                {% with arrival_id=user.id|stringformat:"s" %}
+                <span><a id=u-{{event.id}} class="primary-outline-button disabled">Seat [{{ arrival_id|get_seat:event.id }}]</a></span>
+                {% endwith %}
+            {% else %}
+                <span><a id=u-{{event.id}} class="primary-outline-button" onclick="submit(this.id)">Unregister</a></span>
+            {% endif %}
+
+        {% else %}
+            {% if event.is_fully_booked %}
+            <span><a id=r-{{event.id}} class="primary-outline-button disabled">FULL</a></span>
+            {% else %}
+                <span><a id=r-{{event.id}} class="primary-outline-button" onclick="submit(this.id)">Register</a></span>
+            {% endif %}
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+
+{% empty %}
+<p class="font-size-6 font-weight-3">No events were found</p>
+{% endfor %}
+{% endblock content %}
+{% block JavaScript %}
+<script>  
+function submit(buttonId){
+    var eventId = buttonId.substring(2);
+    // Create a new Ajax object
+    var xhr = new XMLHttpRequest();
+    xhr.onload = function() {
+        var response = JSON.parse(this.responseText)
+        // Request status
+        if (this.readyState === 4 & (this.status === 0 || (this.status >= 200 && this.status < 500))) 
+        {
+            updateCounter(eventId, response)
+            updateButton(buttonId, response)
+            updateMessage(response)     
+        }
+    }
+    // Register request
+    if (buttonId.substring(0,1) == "r") {
+        xhr.open('POST',"{% url 'events_registry:register' 1234 %}".replace(/1234/,eventId),true);
+
+    // Unregister request
+    } else if (buttonId.substring(0,1) == "u") {
+        xhr.open('POST',"{% url 'events_registry:unregister' 1234 %}".replace(/1234/,eventId),true);
+    }
+    xhr.setRequestHeader('X-CSRFToken', '{{ csrf_token }}');
+    xhr.send()
+}
+
+function updateButton(buttonId, response) {
+    var registeringButton = document.getElementById(buttonId);
+        registeringButton.innerHTML = response.button_text;
+        registeringButton.id = response.button_id;
+        registeringButton.classList = response.button_class;
+}
+
+function updateCounter(eventId,response) {
+    var attendersCount = document.getElementById(eventId+'-attenders-count');
+    attendersCount.innerHTML = response.attenders_count;
+}
+
+function updateMessage(response) {
+    var message = document.getElementById("messages-box");
+    message.innerHTML = ""
+    message.className = "d-none"
+    message.className = response.message_class
+    message.innerHTML = response.message
+}
+</script>
+{% endblock JavaScript %}
+
+

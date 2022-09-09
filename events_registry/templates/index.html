@@ -1,0 +1,55 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container-cover-parent text-center text-white">
+  <div class="container-cover-child d-flex p-3 mx-auto flex-column">
+      <div class="mb-3">
+        <img class="img-fluid" src="{% static 'events_registry/images/sandnes_moske.png' %}">
+       </div>
+    <h1 class="display-6 fw-bold">MFS Arrangement registrering</h1>
+    <p class="fs-4">På denne nettsiden kan du registrere deg for fredagsbønn og andre aktiviteter i Sandnes Moske (MFS).</p>
+
+    {% if request.user.is_authenticated %}
+    <a class="primary-button mt-3" href="{% url 'events_registry:events' %}">Start</a>
+  </div>
+    {% else %}
+    <div class="d-md-inline-flex">
+    <a class="primary-button mt-3 width-100 ms-1" href="{% url 'users:login' %}">LOGIN
+    </a>
+    <a class="primary-button mt-3 width-100 ms-1" href="{% url 'users:register' %}">REGISTER
+    </a> 
+    </div>
+  </div>
+  {% endif %}
+
+
+<div class="border border-3 p-3 mt-2 rounded-top">
+  <h2 class="display-5 primary-text-color">Hvordan kan jeg starte?</h2>
+  <ul class="list-group m-4 text-start">
+    <li class="font-size-6 m-2">Først må du registrere en brukerprofil og lage brukernavn/passord. Husk eller skriv ned brukernavn/passordet!</li>
+    <li class="font-size-6 m-2">Når det er gjort vil du bli sendt tilbake til events siden. Inne på Events registrerer du på den bønnen eller aktiviteten du ønsker å delta på</li>
+    <li class="font-size-6 m-2">Da er registrering ferdig!</li>
+  </ul>
+</div>
+
+
+<div class="border border-3 p-3 mt-2 rounded-top">
+  <h2 class="display-5 primary-text-color">FAQ</h2>
+  <ul class="list-group text-start m-4">
+    <li class="font-size-6">Kan jeg avregistrere meg fra et arrangement?</li>
+    <p class="font-size-3 mt-1">Ja, det kan du. Du kan avregistrere deg fra et arrangement frem til arrangementet starter ved å klikke "Unregister".</p>
+
+    <li class="font-size-6">Hvor finner jeg plass nummeret mitt?</li>
+    <p class="font-size-3 mt-1">Når du blir sjekket inn av en vakt, får du automatisk et plass nr. Du kan finne det inne på din egen profil ved siden av arrangement informasjonen.</p>
+  </ul>
+</div>
+
+<div class="border border-3 p-3 mt-2 rounded-top">
+  <h2 class="font-size-6 primary-text-color">Trenger du hjelp?</h2>
+  <p class="font-size-3">Ta kontakt med oss på <a href="https://chat.whatsapp.com/FlzvpZoZ3IM66xV4n2UK2N">Whatsapp</a>
+     eller via <a href="https://www.facebook.com/moskesandnes/">Facebook</a></p>
+</div>
+<footer class="mt-1">Copyright 2021 Muslim Forum Sandnes</footer>
+</div>
+{% endblock content %}

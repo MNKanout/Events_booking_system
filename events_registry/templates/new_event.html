@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+
+{% block content %}
+{% if messages %}
+    {% for message in messages %}
+<div class="alert alert-{{message.tags}}" role="alert">
+    {{message}}
+    {% for key,value in form.errors.items %}
+    {{value}}
+    {% endfor %}
+  </div>
+  {% endfor %}
+  {% endif %}
+<div class="row g-3">
+    <div class="col col-sm">
+        <form class="justify-content-center" action="{% url 'events_registry:new_event' %}" method="POST">
+        {% for field in form %}
+        {% if field.errors %}
+        {{field.label}}
+            <div class="alert alert-danger" role="alert">
+                <p>{{field}}</p>
+            </div>
+        {% else %}
+            <p>{{field.label}}{{field}}</p>
+        {% endif %}
+        {% endfor %}
+        {% csrf_token %}
+        <button class="primary-button" name="submit">Add Event</button>
+        </form>
+    </div>
+</div>
+
+{% endblock %}
